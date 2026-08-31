@@ -10,9 +10,10 @@ body{font-family:system-ui,sans-serif;background:#f5f5f5;min-height:100vh;displa
 .card{background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.10);padding:48px 40px;max-width:480px;text-align:center}
 .logo{max-width:260px;margin:0 auto 32px}
 .title{font-size:22px;font-weight:700;color:#c0392b;margin-bottom:12px}
-.msg{font-size:15px;color:#444;line-height:1.7;margin-bottom:28px}
+.msg{font-size:15px;color:#444;line-height:1.7;margin-bottom:8px}
 .spinner{display:inline-block;width:36px;height:36px;border:4px solid #eee;border-top-color:#c0392b;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:16px}
 @keyframes spin{to{transform:rotate(360deg)}}
+.note{font-size:11px;color:#aaa;margin-top:16px}
 </style>
 </head>
 <body>
@@ -21,18 +22,42 @@ body{font-family:system-ui,sans-serif;background:#f5f5f5;min-height:100vh;displa
   <div class="spinner"></div>
   <div class="title">Orario in aggiornamento</div>
   <div class="msg">Stiamo caricando l'orario aggiornato.<br>Si prega di riprovare tra qualche minuto.</div>
+  <div class="note" id="note"></div>
 </div>
 <script>
-// Controlla periodicamente se la home Ã¨ disponibile e reindirizza
 (function(){
-  var root=location.origin+'/'+location.pathname.split('/')[1]+'/';
+  // Ricava l'URL base del sito (es. https://cnos-fap.github.io/Orario-CFP/)
+  var parts=location.pathname.split('/').filter(Boolean);
+  var base=location.origin+(parts.length?'/'+parts[0]+'/':'/');
+  var attempts=0;
+
   function check(){
-    fetch(root,{method:'HEAD',cache:'no-store'})
-      .then(function(r){if(r.ok)location.href=root;})
+    attempts++;
+    document.getElementById('note').textContent='Verifica #'+attempts+'...';
+    var ts=Date.now();
+    // Cerca il file orario_v*.html piÃ¹ recente nell'index con cache buster
+    fetch(base+'index.html?v='+ts,{cache:'no-store'})
+      .then(function(r){return r.text();})
+      .then(function(txt){
+        // Estrae l'URL del nuovo orario dall'index.html
+        var m=txt.match(/orario_v[\w]+\.html/);
+        if(m){
+          var newUrl=base+m[0]+'?v='+ts;
+          // Verifica che il nuovo file esista davvero prima di reindirizzare
+          return fetch(newUrl,{method:'HEAD',cache:'no-store'})
+            .then(function(r2){
+              if(r2.ok){
+                document.getElementById('note').textContent='Orario trovato, reindirizzamento...';
+                location.replace(newUrl);
+              }
+            });
+        }
+      })
       .catch(function(){});
   }
-  setTimeout(check,15000); // prima verifica dopo 15 secondi
-  setInterval(check,30000); // poi ogni 30 secondi
+
+  setTimeout(check,15000);
+  setInterval(check,30000);
 })();
 </script>
 </body>
